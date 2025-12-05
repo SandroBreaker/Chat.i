@@ -1,0 +1,320 @@
+import { state } from './state.js';
+
+let allCachedUsers = [];
+
+/* --- CARREGAR USUÁRIOS (Lista de Contatos) --- */
+export async function loadUsers(forceReload = false) {
+  const listEl = document.getElementById('users-list');
+  if (!listEl) return;
+
+  if (!forceReload && allCachedUsers.length > 0) {
+    renderUserList(allCachedUsers);
+    return;
+  }
+
+  // Skeleton Loading
+  listEl.innerHTML = `<div style="padding: 16px;"><div class="skeleton" style="height: 60px; margin-bottom: 10px;"></div><div class="skeleton" style="height: 60px;"></div></div>`;
+  
+  try {
+      if (!state.currentUser?.id) throw new Error("Usuário deslogado.");
+      const { data, error } = await state.supabase.from('profilesMSP').select('*').neq('id', state.currentUser.id);
+      if (error) throw error;
+
+      state.users = data || [];
+      allCachedUsers = state.users; 
+      renderUserList(allCachedUsers);
+  } catch (err) {
+      console.error(err);
+      listEl.innerHTML = `<div class="text-body" style="padding: 20px; text-align: center; color: var(--color-danger);">Erro ao carregar contatos.</div>`;
+  }
+}
+
+function renderUserList(usersArray) {
+  const listEl = document.getElementById('users-list');
+  listEl.innerHTML = ''; 
+
+  if (usersArray.length === 0) {
+      listEl.innerHTML = `<div class="text-body" style="padding: 20px; text-align: center;">Nenhum contato.</div>`;
+      return;
+  }
+
+  usersArray.forEach(user => {
+    const el = document.createElement('div');
+    el.className = 'chat-list-item';
+    const avatar = user.avatar_url || `https://ui-avatars.com/api/?name=${user.username}&background=random`;
+    el.innerHTML = `
+      <div class="avatar-container"><img src="${avatar}" class="avatar"></div>
+      <div class="item-content">
+        <div class="item-header"><span class="item-name">${user.username}</span><span class="item-time">Chat</span></div>
+        <div class="item-preview"><span style="font-size: 0.8rem; color: var(--text-secondary);">Toque para conversar</span></div>
+      </div>`;
+    
+    el.addEventListener('click', () => selectUser(user, el));
+    listEl.appendChild(el);
+  });
+}
+
+export function selectUser(user, elementRef) {
+  state.selectedUser = user;
+  
+  document.querySelectorAll('.chat-list-item').forEach(el => el.classList.remove('active'));
+  if(elementRef) elementRef.classList.add('active');
+
+  const sidebar = document.getElementById('chat-sidebar');
+  const btnBack = document.getElementById('btn-back-list');
+  if (window.innerWidth < 768) {
+      sidebar.classList.add('hidden-mobile');
+      if(btnBack) btnBack.style.display = 'block';
+  }
+  
+  document.getElementById('chat-empty-state').classList.add('hidden');
+  document.getElementById('chat-active-container').classList.remove('hidden');
+  document.getElementById('chat-header-name').textContent = user.username;
+  document.getElementById('chat-header-avatar').src = user.avatar_url || `https://ui-avatars.com/api/?name=${user.username}&background=random`;
+  
+  loadMessages();
+}
+
+/* --------------------------------------------------------------------------
+   ALGORITMO DE CARGA: DUAL FETCH & MERGE
+-------------------------------------------------------------------------- */
+async function loadMessages() {
+  const container = document.getElementById('messages-list');
+  container.innerHTML = `<div class="typing-indicator" style="margin: 20px auto;"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
+  
+  if (!state.currentUser || !state.selectedUser) {
+      container.innerHTML = `<div class="text-body" style="text-align: center; margin-top: 20px; color: var(--color-danger);">Erro de sessão.</div>`;
+      return;
+  }
+  
+  const myId = state.currentUser.id;
+  const partnerId = state.selectedUser.id;
+
+  try {
+      // 1. VARIÁVEL A: Busca as mensagens que EU enviei para ELE
+      const sentPromise = state.supabase
+        .from('messages')
+        .select('*')
+        .eq('sender_id', myId)
+        .eq('recipient_id', partnerId);
+
+      // 2. VARIÁVEL B: Busca as mensagens que ELE enviou para MIM
+      const receivedPromise = state.supabase
+        .from('messages')
+        .select('*')
+        .eq('sender_id', partnerId)
+        .eq('recipient_id', myId);
+
+      const [sentResponse, receivedResponse] = await Promise.all([sentPromise, receivedPromise]);
+
+      if (sentResponse.error) throw sentResponse.error;
+      if (receivedResponse.error) throw receivedResponse.error;
+
+      const allMessages = [...(sentResponse.data || []), ...(receivedResponse.data || [])];
+
+      // 3. ORDENAR POR DATE TIME
+      allMessages.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+      state.messages = allMessages;
+      
+      renderMessagesList(true);
+      subscribeToRealtime();
+
+  } catch (err) {
+      console.error("❌ Falha no algoritmo de carga:", err);
+      container.innerHTML = `<div class="text-body" style="text-align: center; margin-top: 20px; color: var(--color-danger);">Erro ao sincronizar conversa.</div>`;
+  }
+}
+
+function renderMessagesList(scrollToBottom = false) {
+  const container = document.getElementById('messages-list');
+  container.innerHTML = '';
+  
+  if (state.messages.length === 0) {
+      container.innerHTML = `<div class="text-body" style="text-align: center; margin-top: 40px; opacity: 0.5;">Inicie a conversa...</div>`;
+      return;
+  }
+
+  state.messages.forEach(msg => appendMessageToDOM(msg, container));
+  
+  if (scrollToBottom) {
+      setTimeout(() => container.scrollTop = container.scrollHeight, 50);
+  }
+}
+
+function appendMessageToDOM(msg, container) {
+  // O sender_id determina quem é o 'owner' da mensagem
+  const isOwn = msg.sender_id === state.currentUser.id;
+  
+  const divWrapper = document.createElement('div');
+  divWrapper.style.display = 'flex';
+  divWrapper.style.width = '100%';
+  divWrapper.style.justifyContent = isOwn ? 'flex-end' : 'flex-start';
+  
+  const dateObj = new Date(msg.created_at);
+  const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  // Renderiza HTML puro (útil para imagem) se contiver tags, senão escapa (segurança básica é feita no envio)
+  // No caso de imagem, o content será <img src="...">.
+  
+  divWrapper.innerHTML = `
+    <div class="message-bubble ${isOwn ? 'message-out' : 'message-in'}">
+      ${msg.content}
+      <div class="bubble-meta">
+         <span class="bubble-time">${timeStr}</span>
+         ${isOwn ? '<i data-lucide="check" style="width: 12px;"></i>' : ''}
+      </div>
+    </div>`;
+  
+  container.appendChild(divWrapper);
+  if(window.lucide) window.lucide.createIcons({ root: divWrapper });
+}
+
+function subscribeToRealtime() {
+  if (state.realtimeChannel) state.supabase.removeChannel(state.realtimeChannel);
+  
+  state.realtimeChannel = state.supabase.channel('chat_channel')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        const newMsg = payload.new;
+        const isRelated = 
+           (newMsg.sender_id === state.selectedUser.id && newMsg.recipient_id === state.currentUser.id) ||
+           (newMsg.sender_id === state.currentUser.id && newMsg.recipient_id === state.selectedUser.id);
+
+        if (isRelated) {
+             const alreadyExists = state.messages.find(m => m.id === newMsg.id);
+             if(!alreadyExists) {
+                state.messages.push(newMsg);
+                appendMessageToDOM(newMsg, document.getElementById('messages-list'));
+                const container = document.getElementById('messages-list');
+                container.scrollTop = container.scrollHeight;
+             }
+        }
+    }).subscribe();
+}
+
+// Utilitário: Converte File para Base64 Comprimido (Canvas)
+async function compressAndConvertToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                // Redimensiona para max 800px width para economizar banco
+                const MAX_WIDTH = 800;
+                const scaleSize = MAX_WIDTH / img.width;
+                canvas.width = (img.width > MAX_WIDTH) ? MAX_WIDTH : img.width;
+                canvas.height = (img.width > MAX_WIDTH) ? (img.height * scaleSize) : img.height;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                // Retorna JPG com 0.7 qualidade
+                resolve(canvas.toDataURL('image/jpeg', 0.7)); 
+            };
+            img.onerror = (err) => reject(err);
+        };
+        reader.onerror = (err) => reject(err);
+    });
+}
+
+/* --- LISTENERS DO CHAT (Garantia do Sender ID) --- */
+export function setupChatListeners() {
+  const btnBack = document.getElementById('btn-back-list');
+  if(btnBack) {
+    btnBack.addEventListener('click', () => {
+      document.getElementById('chat-sidebar').classList.remove('hidden-mobile');
+      btnBack.style.display = 'none';
+    });
+  }
+
+  // --- LÓGICA DE ENVIO DE TEXTO ---
+  const form = document.getElementById('message-form');
+  if(form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('message-input');
+      const content = input.value.trim();
+      
+      if (!content || !state.selectedUser) return;
+      
+      // *** VERIFICAÇÃO DE SEGURANÇA ***
+      // Buscamos o ID da sessão agora para garantir que somos NÓS enviando
+      const { data: { user } } = await state.supabase.auth.getUser();
+      const actualSenderId = user?.id;
+      
+      if (!actualSenderId) {
+          console.error("❌ Falha crítica: ID do remetente autenticado não encontrado.");
+          return;
+      }
+      
+      input.value = ''; input.focus();
+
+      await sendMessage(content, actualSenderId);
+    });
+  }
+
+  // --- LÓGICA DE ENVIO DE IMAGEM ---
+  const btnAttach = document.getElementById('btn-attach');
+  const fileInput = document.getElementById('hidden-file-input');
+
+  if (btnAttach && fileInput) {
+      btnAttach.addEventListener('click', () => {
+          fileInput.click(); // Abre o seletor nativo
+      });
+
+      fileInput.addEventListener('change', async (e) => {
+          if (e.target.files && e.target.files[0]) {
+              const file = e.target.files[0];
+              console.log("Processando imagem...", file.name);
+              
+              try {
+                  // 1. Converter imagem
+                  const base64 = await compressAndConvertToBase64(file);
+                  const imgTag = `<img src="${base64}" class="msg-image" alt="Imagem enviada" />`;
+                  
+                  // 2. Pegar user ID seguro
+                  const { data: { user } } = await state.supabase.auth.getUser();
+                  if (!user?.id) throw new Error("Sessão inválida");
+
+                  // 3. Enviar como HTML
+                  await sendMessage(imgTag, user.id);
+                  
+                  // Reset input
+                  fileInput.value = ''; 
+              } catch (err) {
+                  console.error("Erro ao enviar imagem:", err);
+                  alert("Erro ao processar imagem.");
+              }
+          }
+      });
+  }
+}
+
+// Função centralizada de envio
+async function sendMessage(contentString, senderId) {
+    const tempMsg = {
+        content: contentString, 
+        sender_id: senderId, // ID verificado
+        recipient_id: state.selectedUser.id,
+        created_at: new Date().toISOString(), 
+        read: false
+    };
+    
+    // Render Otimista
+    state.messages.push(tempMsg);
+    appendMessageToDOM(tempMsg, document.getElementById('messages-list'));
+    document.getElementById('messages-list').scrollTop = document.getElementById('messages-list').scrollHeight;
+
+    // Envio para o Banco
+    await state.supabase.from('messages').insert([tempMsg]);
+}
+
+const searchInput = document.getElementById('contact-search-input');
+if(searchInput) {
+    searchInput.addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase();
+        if(allCachedUsers.length) renderUserList(allCachedUsers.filter(u => u.username.toLowerCase().includes(term)));
+    });
+}
