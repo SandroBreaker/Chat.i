@@ -32,22 +32,25 @@ async function initApp() {
         
         // Listener único de verdade
         state.supabase.auth.onAuthStateChange((event, session) => {
-            console.log(`📡 Evento Auth: ${event}`);
+            console.log(`📡 Evento Auth: ${event} | Possui Sessão? ${!!session}`);
             
-            // INITIAL_SESSION: Disparado ao carregar a página se houver token
-            // SIGNED_IN: Disparado após login explícito
-            if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session) {
-                handleSessionSuccess(session);
-            } 
-            else if (event === 'SIGNED_OUT') {
+            if (session) {
+                // CASO A: Usuário Autenticado
+                // INITIAL_SESSION: Disparado ao carregar a página se houver token
+                // SIGNED_IN: Disparado após login explícito
+                // TOKEN_REFRESHED: Atualização de token (manter sessão)
+                if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                    handleSessionSuccess(session);
+                } 
+            } else {
+                // CASO B: Não autenticado (Logout ou App aberto sem cookie)
+                // Se INITIAL_SESSION vier null, precisamos ir para o Auth
+                console.log("Nenhuma sessão ativa detectada. Indo para Auth.");
                 state.session = null;
                 state.currentUser = null;
                 showScreen('auth');
             }
         });
-
-        // NOTA: Removemos a chamada manual 'getSession()' aqui para evitar 
-        // que o handleSessionSuccess rode duas vezes (uma pelo listener, outra manual).
 
       } else {
           throw new Error("Supabase Client não foi criado.");
