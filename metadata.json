@@ -1,5 +1,5 @@
 {
   "name": "WhatsChat",
-  "description": "WhatsApp clone with Supabase",
+  "description": "A WhatsApp-inspired messaging application with Supabase integration for real-time authentication and data storage.",
   "requestFramePermissions": []
 }
