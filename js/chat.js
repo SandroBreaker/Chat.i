@@ -44,7 +44,6 @@ export async function loadUsers(forceReload = false) {
       renderUserList(allCachedUsers);
       
       // Inicia listener GLOBAL (para notificações) após carregar usuários
-      // (Precisamos dos usuários carregados para saber os nomes nas notificações)
       setupGlobalRealtimeSubscription();
 
   } catch (err) {
@@ -84,14 +83,16 @@ export function selectUser(user, elementRef) {
   document.querySelectorAll('.chat-list-item').forEach(el => el.classList.remove('active'));
   if(elementRef) elementRef.classList.add('active');
 
-  const sidebar = document.getElementById('chat-sidebar');
+  // --- LÓGICA MOBILE DE NAVEGAÇÃO ---
+  // Apenas adicionamos a classe que faz a chat area deslizar para dentro
+  const chatArea = document.querySelector('.chat-area');
+  if(chatArea) chatArea.classList.add('mobile-active');
+  
   const btnBack = document.getElementById('btn-back-list');
-  if (window.innerWidth < 768) {
-      sidebar.classList.add('hidden-mobile');
-      if(btnBack) btnBack.style.display = 'block';
+  if (window.innerWidth < 768 && btnBack) {
+      btnBack.style.display = 'block';
   }
   
-  document.getElementById('chat-empty-state').classList.add('hidden');
   document.getElementById('chat-active-container').classList.remove('hidden');
   document.getElementById('chat-header-name').textContent = user.username;
   document.getElementById('chat-header-avatar').src = user.avatar_url || `https://ui-avatars.com/api/?name=${user.username}&background=random`;
@@ -366,7 +367,10 @@ export function setupChatListeners() {
   const btnBack = document.getElementById('btn-back-list');
   if(btnBack) {
     btnBack.addEventListener('click', () => {
-      document.getElementById('chat-sidebar').classList.remove('hidden-mobile');
+      // Remover a classe de ativação faz o chat deslizar para a direita (sumir)
+      const chatArea = document.querySelector('.chat-area');
+      if(chatArea) chatArea.classList.remove('mobile-active');
+      
       btnBack.style.display = 'none';
       state.selectedUser = null; // Limpa usuário selecionado ao voltar
     });

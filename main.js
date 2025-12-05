@@ -10,7 +10,7 @@ import { initDebugConsole } from './js/debug.js';
 // Inicialização
 async function initApp() {
   initDebugConsole();
-  console.log("%c 🚀 BOOTSTRAP V2 - INICIANDO NEBULA CHAT ", "background: #10b981; color: white; padding: 4px; border-radius: 4px;");
+  console.log("%c 🚀 BOOTSTRAP V2.5 - MOBILE FIX ", "background: #10b981; color: white; padding: 4px; border-radius: 4px;");
   
   try {
       loadConfig();
