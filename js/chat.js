@@ -2,6 +2,17 @@ import { state } from './state.js';
 
 let allCachedUsers = [];
 
+export function clearChatCache() {
+    allCachedUsers = [];
+    state.users = [];
+    state.messages = [];
+    state.selectedUser = null;
+    if (state.realtimeChannel) {
+        state.supabase.removeChannel(state.realtimeChannel);
+        state.realtimeChannel = null;
+    }
+}
+
 /* --- CARREGAR USUÁRIOS (Lista de Contatos) --- */
 export async function loadUsers(forceReload = false) {
   const listEl = document.getElementById('users-list');
@@ -17,7 +28,12 @@ export async function loadUsers(forceReload = false) {
   
   try {
       if (!state.currentUser?.id) throw new Error("Usuário deslogado.");
-      const { data, error } = await state.supabase.from('profilesMSP').select('*').neq('id', state.currentUser.id);
+      
+      const { data, error } = await state.supabase
+          .from('profilesMSP')
+          .select('*')
+          .neq('id', state.currentUser.id);
+          
       if (error) throw error;
 
       state.users = data || [];
@@ -25,7 +41,7 @@ export async function loadUsers(forceReload = false) {
       renderUserList(allCachedUsers);
   } catch (err) {
       console.error(err);
-      listEl.innerHTML = `<div class="text-body" style="padding: 20px; text-align: center; color: var(--color-danger);">Erro ao carregar contatos.</div>`;
+      listEl.innerHTML = `<div class="text-body" style="padding: 20px; text-align: center; color: var(--color-danger);">Erro ao carregar contatos.<br><small>${err.message}</small></div>`;
   }
 }
 
@@ -33,8 +49,8 @@ function renderUserList(usersArray) {
   const listEl = document.getElementById('users-list');
   listEl.innerHTML = ''; 
 
-  if (usersArray.length === 0) {
-      listEl.innerHTML = `<div class="text-body" style="padding: 20px; text-align: center;">Nenhum contato.</div>`;
+  if (!usersArray || usersArray.length === 0) {
+      listEl.innerHTML = `<div class="text-body" style="padding: 20px; text-align: center;">Nenhum contato encontrado.</div>`;
       return;
   }
 
@@ -138,7 +154,10 @@ function renderMessagesList(scrollToBottom = false) {
   state.messages.forEach(msg => appendMessageToDOM(msg, container));
   
   if (scrollToBottom) {
-      setTimeout(() => container.scrollTop = container.scrollHeight, 50);
+      // requestAnimationFrame é mais suave que setTimeout para UI updates
+      requestAnimationFrame(() => {
+          container.scrollTop = container.scrollHeight;
+      });
   }
 }
 
@@ -150,13 +169,11 @@ function appendMessageToDOM(msg, container) {
   divWrapper.style.display = 'flex';
   divWrapper.style.width = '100%';
   divWrapper.style.justifyContent = isOwn ? 'flex-end' : 'flex-start';
+  divWrapper.style.marginBottom = '8px'; // Espaçamento visual melhorado
   
   const dateObj = new Date(msg.created_at);
   const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  // Renderiza HTML puro (útil para imagem) se contiver tags, senão escapa (segurança básica é feita no envio)
-  // No caso de imagem, o content será <img src="...">.
-  
   divWrapper.innerHTML = `
     <div class="message-bubble ${isOwn ? 'message-out' : 'message-in'}">
       ${msg.content}
@@ -171,11 +188,19 @@ function appendMessageToDOM(msg, container) {
 }
 
 function subscribeToRealtime() {
-  if (state.realtimeChannel) state.supabase.removeChannel(state.realtimeChannel);
+  if (state.realtimeChannel) {
+      // Verifica se o canal já é o correto para evitar recriação desnecessária?
+      // Por simplicidade, recriamos para garantir binding correto com user selecionado
+      state.supabase.removeChannel(state.realtimeChannel);
+  }
   
   state.realtimeChannel = state.supabase.channel('chat_channel')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         const newMsg = payload.new;
+        
+        // Verificação de segurança: A mensagem pertence a conversa atual?
+        if (!state.selectedUser || !state.currentUser) return;
+
         const isRelated = 
            (newMsg.sender_id === state.selectedUser.id && newMsg.recipient_id === state.currentUser.id) ||
            (newMsg.sender_id === state.currentUser.id && newMsg.recipient_id === state.selectedUser.id);
@@ -240,7 +265,6 @@ export function setupChatListeners() {
       if (!content || !state.selectedUser) return;
       
       // *** VERIFICAÇÃO DE SEGURANÇA ***
-      // Buscamos o ID da sessão agora para garantir que somos NÓS enviando
       const { data: { user } } = await state.supabase.auth.getUser();
       const actualSenderId = user?.id;
       
@@ -270,18 +294,14 @@ export function setupChatListeners() {
               console.log("Processando imagem...", file.name);
               
               try {
-                  // 1. Converter imagem
                   const base64 = await compressAndConvertToBase64(file);
                   const imgTag = `<img src="${base64}" class="msg-image" alt="Imagem enviada" />`;
                   
-                  // 2. Pegar user ID seguro
                   const { data: { user } } = await state.supabase.auth.getUser();
                   if (!user?.id) throw new Error("Sessão inválida");
 
-                  // 3. Enviar como HTML
                   await sendMessage(imgTag, user.id);
                   
-                  // Reset input
                   fileInput.value = ''; 
               } catch (err) {
                   console.error("Erro ao enviar imagem:", err);
@@ -292,11 +312,10 @@ export function setupChatListeners() {
   }
 }
 
-// Função centralizada de envio
 async function sendMessage(contentString, senderId) {
     const tempMsg = {
         content: contentString, 
-        sender_id: senderId, // ID verificado
+        sender_id: senderId, 
         recipient_id: state.selectedUser.id,
         created_at: new Date().toISOString(), 
         read: false
@@ -305,7 +324,8 @@ async function sendMessage(contentString, senderId) {
     // Render Otimista
     state.messages.push(tempMsg);
     appendMessageToDOM(tempMsg, document.getElementById('messages-list'));
-    document.getElementById('messages-list').scrollTop = document.getElementById('messages-list').scrollHeight;
+    const container = document.getElementById('messages-list');
+    container.scrollTop = container.scrollHeight;
 
     // Envio para o Banco
     await state.supabase.from('messages').insert([tempMsg]);

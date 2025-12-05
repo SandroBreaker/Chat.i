@@ -1,8 +1,15 @@
 import { state } from './state.js';
 import { showScreen } from './ui.js';
-import { loadUsers } from './chat.js';
+import { loadUsers, clearChatCache } from './chat.js';
 
 export async function handleSessionSuccess(session) {
+  // IDEMPOTÊNCIA: Se já estamos configurados com esse usuário, não faz nada.
+  // Isso protege contra disparos múltiplos de eventos do Supabase.
+  if (state.currentUser && state.currentUser.id === session.user.id) {
+      console.log("🔄 Sessão já ativa para este usuário. Ignorando reinicialização.");
+      return;
+  }
+
   console.log("handleSessionSuccess iniciado...");
   state.session = session;
   state.currentUser = {
@@ -16,10 +23,8 @@ export async function handleSessionSuccess(session) {
       avatarEl.src = `https://ui-avatars.com/api/?name=${state.currentUser.email}&background=00a884&color=fff`;
   }
   
-  // TENTA criar o perfil se não existir (Correção para usuários antigos)
-  // Isso resolve o problema de "loadUsers vazio" se o perfil nunca foi criado
   try {
-      const { data, error } = await state.supabase
+      const { error } = await state.supabase
         .from('profilesMSP')
         .upsert({ 
             id: session.user.id,
@@ -70,8 +75,7 @@ export function setupAuthListeners() {
   if(authForm) {
     authForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      console.log("Formulário de Auth submetido. Modo Login:", state.isLoginMode);
-
+      
       const email = document.getElementById('input-email').value;
       const password = document.getElementById('input-password').value;
       const username = document.getElementById('input-username').value;
@@ -87,7 +91,7 @@ export function setupAuthListeners() {
         if (state.isLoginMode) {
           const { error } = await state.supabase.auth.signInWithPassword({ email, password });
           if (error) throw error;
-          console.log("Login realizado com sucesso.");
+          console.log("Login solicitado com sucesso.");
         } else {
           console.log("Tentando cadastro...");
           const { data, error } = await state.supabase.auth.signUp({ email, password });
@@ -103,8 +107,9 @@ export function setupAuthListeners() {
             }]);
             
             if (profileError) {
-                console.error("Erro ao criar perfil:", profileError);
-                throw new Error("Conta criada, mas falha ao salvar perfil. Tente logar.");
+                // Se falhar ao criar perfil, mas user foi criado, apenas loga o erro.
+                // O upsert no login subsequente corrigirá isso.
+                console.error("Erro não-crítico ao criar perfil:", profileError);
             }
             
             alert("Conta criada! Você já pode entrar.");
@@ -127,8 +132,8 @@ export function setupAuthListeners() {
   if (btnLogout) {
       btnLogout.addEventListener('click', async () => {
           if (confirm("Deseja realmente sair?")) {
+              clearChatCache(); // Limpa cache local de usuários
               await state.supabase.auth.signOut();
-              // Força o reload para limpar memória
               window.location.reload();
           }
       });
@@ -137,12 +142,11 @@ export function setupAuthListeners() {
   const btnReload = document.getElementById('btn-reload-users');
   if (btnReload) {
       btnReload.addEventListener('click', async () => {
-          // Gira o ícone para dar feedback
           const icon = btnReload.querySelector('svg') || btnReload.querySelector('i');
           if(icon) icon.style.transition = 'transform 0.5s';
           if(icon) icon.style.transform = 'rotate(180deg)';
           
-          await loadUsers(true); // Força reload
+          await loadUsers(true); 
           
           setTimeout(() => { if(icon) icon.style.transform = 'rotate(0deg)'; }, 500);
       });

@@ -25,35 +25,29 @@ async function initApp() {
 
       // 3. Configurar Listeners (Botões e Inputs)
       setupAuthListeners();
-      setupChatListeners(); // Prepara o chat mesmo antes de logar
+      setupChatListeners(); 
 
-      // 4. Verificar Sessão
+      // 4. Verificar Sessão (Apenas via Listener para evitar duplicidade)
       if (state.supabase) {
         
-        // Listener de mudanças de estado (Login/Logout)
+        // Listener único de verdade
         state.supabase.auth.onAuthStateChange((event, session) => {
             console.log(`📡 Evento Auth: ${event}`);
-            if (event === 'SIGNED_IN' && session) {
+            
+            // INITIAL_SESSION: Disparado ao carregar a página se houver token
+            // SIGNED_IN: Disparado após login explícito
+            if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session) {
                 handleSessionSuccess(session);
-            } else if (event === 'SIGNED_OUT') {
+            } 
+            else if (event === 'SIGNED_OUT') {
                 state.session = null;
                 state.currentUser = null;
                 showScreen('auth');
             }
         });
 
-        // Checagem inicial
-        const { data: { session }, error } = await state.supabase.auth.getSession();
-        
-        if (error) throw error;
-        
-        if (session) {
-            console.log("✅ Sessão recuperada para:", session.user.email);
-            await handleSessionSuccess(session);
-        } else {
-            console.log("👤 Nenhuma sessão ativa. Mostrando Login.");
-            showScreen('auth');
-        }
+        // NOTA: Removemos a chamada manual 'getSession()' aqui para evitar 
+        // que o handleSessionSuccess rode duas vezes (uma pelo listener, outra manual).
 
       } else {
           throw new Error("Supabase Client não foi criado.");
@@ -62,7 +56,6 @@ async function initApp() {
   } catch (error) {
       console.error("❌ ERRO FATAL NA INICIALIZAÇÃO:", error);
       
-      // Força a remoção do loading e mostra erro na tela
       const loading = document.getElementById('screen-loading');
       if(loading) {
           loading.innerHTML = `
@@ -76,5 +69,4 @@ async function initApp() {
   }
 }
 
-// Garante que o DOM carregou antes de rodar
 document.addEventListener('DOMContentLoaded', initApp);
