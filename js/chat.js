@@ -97,6 +97,26 @@ export function selectUser(user, elementRef) {
   document.getElementById('chat-header-avatar').src = user.avatar_url || `https://ui-avatars.com/api/?name=${user.username}&background=random`;
   
   loadMessages();
+  // Marca mensagens deste usuário como lidas ao abrir o chat
+  markMessagesAsRead(user.id);
+}
+
+// Helper: Marca mensagens como lidas no Banco de Dados
+async function markMessagesAsRead(senderId) {
+    if (!state.currentUser) return;
+
+    try {
+        const { error } = await state.supabase
+            .from('messages')
+            .update({ read: true })
+            .eq('sender_id', senderId)
+            .eq('recipient_id', state.currentUser.id)
+            .eq('read', false); // Só atualiza as que ainda não foram lidas
+
+        if (error) console.error("Erro ao marcar como lida:", error);
+    } catch (e) {
+        console.error("Erro em markMessagesAsRead:", e);
+    }
 }
 
 /* --------------------------------------------------------------------------
@@ -142,9 +162,6 @@ async function loadMessages() {
       state.messages = allMessages;
       renderMessagesList(true);
 
-      // NOTA: A inscrição no Realtime agora é GLOBAL (feita no loadUsers)
-      // Não recriamos o canal aqui para evitar duplicidade.
-
   } catch (err) {
       console.error("❌ Falha no algoritmo de carga:", err);
       container.innerHTML = `<div class="text-body" style="text-align: center; margin-top: 20px; color: var(--color-danger);">Erro ao sincronizar conversa.</div>`;
@@ -163,7 +180,6 @@ function renderMessagesList(scrollToBottom = false) {
   state.messages.forEach(msg => appendMessageToDOM(msg, container));
   
   if (scrollToBottom) {
-      // requestAnimationFrame é mais suave que setTimeout para UI updates
       requestAnimationFrame(() => {
           container.scrollTop = container.scrollHeight;
       });
@@ -171,24 +187,33 @@ function renderMessagesList(scrollToBottom = false) {
 }
 
 function appendMessageToDOM(msg, container) {
-  // O sender_id determina quem é o 'owner' da mensagem
   const isOwn = msg.sender_id === state.currentUser.id;
   
   const divWrapper = document.createElement('div');
+  divWrapper.id = `msg-${msg.id}`; // ID para atualização posterior
   divWrapper.style.display = 'flex';
   divWrapper.style.width = '100%';
   divWrapper.style.justifyContent = isOwn ? 'flex-end' : 'flex-start';
-  divWrapper.style.marginBottom = '8px'; // Espaçamento visual melhorado
+  divWrapper.style.marginBottom = '8px';
   
   const dateObj = new Date(msg.created_at);
   const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  // Ícones de Status: Check Único (Enviado), Check Duplo (Lido)
+  let statusIcon = '';
+  if (isOwn) {
+      const iconName = msg.read ? 'check-check' : 'check';
+      // Cor: Azul (como iMessage/WhatsApp) se lido, transparente/cinza se não
+      const iconColor = msg.read ? '#0A84FF' : 'rgba(255, 255, 255, 0.6)';
+      statusIcon = `<i data-lucide="${iconName}" class="status-icon" style="width: 14px; height: 14px; color: ${iconColor}; margin-left: 4px;"></i>`;
+  }
 
   divWrapper.innerHTML = `
     <div class="message-bubble ${isOwn ? 'message-out' : 'message-in'}">
       ${msg.content}
       <div class="bubble-meta">
          <span class="bubble-time">${timeStr}</span>
-         ${isOwn ? '<i data-lucide="check" style="width: 12px;"></i>' : ''}
+         ${statusIcon}
       </div>
     </div>`;
   
@@ -196,70 +221,95 @@ function appendMessageToDOM(msg, container) {
   if(window.lucide) window.lucide.createIcons({ root: divWrapper });
 }
 
+// Atualiza apenas o ícone de uma mensagem existente (sem re-renderizar tudo)
+function updateMessageStatusUI(msg) {
+    const msgEl = document.getElementById(`msg-${msg.id}`);
+    if (msgEl && msg.read && msg.sender_id === state.currentUser.id) {
+        const iconContainer = msgEl.querySelector('.status-icon');
+        if (iconContainer) {
+            // Atualiza para check duplo e cor azul
+            iconContainer.setAttribute('data-lucide', 'check-check');
+            iconContainer.style.color = '#0A84FF'; // Azul de leitura
+            if(window.lucide) window.lucide.createIcons({ root: msgEl });
+        }
+    }
+}
+
 /* --------------------------------------------------------------------------
    REALTIME GLOBAL & NOTIFICATIONS
-   Ouve TODAS as mensagens recebidas para notificar, não apenas a conversa aberta.
 -------------------------------------------------------------------------- */
-function setupGlobalRealtimeSubscription() {
+export function setupGlobalRealtimeSubscription() {
     if (state.realtimeChannel) {
-        // Se o canal já existe, verificamos se ele está inscrito (opcional, mas seguro retornar)
         console.log("Realtime Channel já ativo.");
         return;
     }
   
-    console.log("📡 Iniciando Subscription Global (Mensagens + Notificações)");
+    console.log("📡 Iniciando Subscription Global (INSERT + UPDATE)");
     
+    // Agora ouvimos INSERT e UPDATE
     state.realtimeChannel = state.supabase.channel('global_messages')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, (payload) => {
           const newMsg = payload.new;
+          const eventType = payload.eventType;
           const myId = state.currentUser?.id;
           
-          if (!myId) return; // Segurança
-  
-          // CASO 1: Mensagem recebida por MIM
-          if (newMsg.recipient_id === myId) {
-              
-              // A. Tenta enviar notificação Browser se necessário
-              handleIncomingNotification(newMsg);
-  
-              // B. Se a conversa com esse remetente estiver ABERTA, atualiza UI
-              if (state.selectedUser && state.selectedUser.id === newMsg.sender_id) {
-                   const alreadyExists = state.messages.find(m => m.id === newMsg.id);
-                   if(!alreadyExists) {
-                      state.messages.push(newMsg);
-                      appendMessageToDOM(newMsg, document.getElementById('messages-list'));
-                      const container = document.getElementById('messages-list');
-                      container.scrollTop = container.scrollHeight;
-                   }
+          if (!myId || !newMsg) return;
+
+          // --- TRATAMENTO DE NOVAS MENSAGENS (INSERT) ---
+          if (eventType === 'INSERT') {
+              if (newMsg.recipient_id === myId) {
+                  // Recebi mensagem
+                  handleIncomingNotification(newMsg);
+      
+                  // Se a conversa está aberta, mostra e MARCA COMO LIDA
+                  if (state.selectedUser && state.selectedUser.id === newMsg.sender_id) {
+                       const alreadyExists = state.messages.find(m => m.id === newMsg.id);
+                       if(!alreadyExists) {
+                          state.messages.push(newMsg);
+                          appendMessageToDOM(newMsg, document.getElementById('messages-list'));
+                          const container = document.getElementById('messages-list');
+                          container.scrollTop = container.scrollHeight;
+                          
+                          // IMPORTANTE: Marcar como lida imediatamente
+                          markMessagesAsRead(newMsg.sender_id);
+                       }
+                  }
+              }
+              else if (newMsg.sender_id === myId) {
+                  // Eu enviei (de outra aba)
+                  if (state.selectedUser && state.selectedUser.id === newMsg.recipient_id) {
+                       const alreadyExists = state.messages.find(m => m.id === newMsg.id);
+                       if(!alreadyExists) {
+                          state.messages.push(newMsg);
+                          appendMessageToDOM(newMsg, document.getElementById('messages-list'));
+                          const container = document.getElementById('messages-list');
+                          container.scrollTop = container.scrollHeight;
+                       }
+                  }
+              }
+          } 
+          // --- TRATAMENTO DE ATUALIZAÇÕES (UPDATE - LEITURA) ---
+          else if (eventType === 'UPDATE') {
+              // Se a mensagem foi atualizada (ex: read = true)
+              // Atualiza estado local
+              const index = state.messages.findIndex(m => m.id === newMsg.id);
+              if (index !== -1) {
+                  state.messages[index] = newMsg;
+                  updateMessageStatusUI(newMsg);
               }
           }
-          // CASO 2: Mensagem enviada por MIM (em outra aba/dispositivo)
-          else if (newMsg.sender_id === myId) {
-              // Se eu estou com a conversa aberta com o destinatário, atualiza minha UI também
-              if (state.selectedUser && state.selectedUser.id === newMsg.recipient_id) {
-                   const alreadyExists = state.messages.find(m => m.id === newMsg.id);
-                   if(!alreadyExists) {
-                      state.messages.push(newMsg);
-                      appendMessageToDOM(newMsg, document.getElementById('messages-list'));
-                      const container = document.getElementById('messages-list');
-                      container.scrollTop = container.scrollHeight;
-                   }
-              }
-          }
+
       }).subscribe((status) => {
           console.log("Realtime Status:", status);
       });
   }
   
   function handleIncomingNotification(newMsg) {
-      // Não notifica se eu estou focado na conversa do remetente
       const isChatOpen = state.selectedUser && state.selectedUser.id === newMsg.sender_id;
       const isWindowFocused = !document.hidden;
       
       // Se a janela está oculta OU o chat não é o que está aberto
       if (!isWindowFocused || !isChatOpen) {
-          
-          // Encontra quem enviou nos usuários cacheados
           const sender = state.users.find(u => u.id === newMsg.sender_id);
           const title = sender ? sender.username : "Nova Mensagem";
           const body = newMsg.content.includes('<img') ? '📷 [Imagem]' : newMsg.content;
@@ -276,7 +326,7 @@ function setupGlobalRealtimeSubscription() {
           const notif = new Notification(title, {
               body: body,
               icon: icon || '/favicon.ico',
-              tag: 'nebula-chat-msg' // Evita spam excessivo
+              tag: 'nebula-chat-msg'
           });
           
           notif.onclick = function() {
@@ -296,7 +346,6 @@ async function compressAndConvertToBase64(file) {
             img.src = event.target.result;
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                // Redimensiona para max 800px width para economizar banco
                 const MAX_WIDTH = 800;
                 const scaleSize = MAX_WIDTH / img.width;
                 canvas.width = (img.width > MAX_WIDTH) ? MAX_WIDTH : img.width;
@@ -304,7 +353,6 @@ async function compressAndConvertToBase64(file) {
                 
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                // Retorna JPG com 0.7 qualidade
                 resolve(canvas.toDataURL('image/jpeg', 0.7)); 
             };
             img.onerror = (err) => reject(err);
@@ -320,6 +368,7 @@ export function setupChatListeners() {
     btnBack.addEventListener('click', () => {
       document.getElementById('chat-sidebar').classList.remove('hidden-mobile');
       btnBack.style.display = 'none';
+      state.selectedUser = null; // Limpa usuário selecionado ao voltar
     });
   }
 
@@ -333,7 +382,6 @@ export function setupChatListeners() {
       
       if (!content || !state.selectedUser) return;
       
-      // *** VERIFICAÇÃO DE SEGURANÇA ***
       const { data: { user } } = await state.supabase.auth.getUser();
       const actualSenderId = user?.id;
       
@@ -354,7 +402,7 @@ export function setupChatListeners() {
 
   if (btnAttach && fileInput) {
       btnAttach.addEventListener('click', () => {
-          fileInput.click(); // Abre o seletor nativo
+          fileInput.click();
       });
 
       fileInput.addEventListener('change', async (e) => {
@@ -392,12 +440,30 @@ async function sendMessage(contentString, senderId) {
     
     // Render Otimista
     state.messages.push(tempMsg);
+    // Nota: O ID ainda não existe, então o appendMessageToDOM vai colocar msg-undefined. 
+    // O INSERT via Realtime corrigirá isso ou precisaremos recarregar. 
+    // Para simplificar aqui no otimista, não esperamos o ID, mas o Realtime 'INSERT' vai trazer o oficial.
+    // Evitamos duplicar filtrando no realtime listener.
     appendMessageToDOM(tempMsg, document.getElementById('messages-list'));
     const container = document.getElementById('messages-list');
     container.scrollTop = container.scrollHeight;
 
     // Envio para o Banco
-    await state.supabase.from('messages').insert([tempMsg]);
+    const { data, error } = await state.supabase.from('messages').insert([tempMsg]).select();
+    
+    // Atualiza ID localmente para permitir updates de UI (como check duplo) sem recarregar
+    if(data && data[0]) {
+        // Encontra a msg temporária (por timestamp e content) e atualiza ID
+        const localMsg = state.messages.find(m => m.created_at === tempMsg.created_at && m.content === tempMsg.content);
+        if(localMsg) localMsg.id = data[0].id;
+        
+        // Atualiza ID no DOM também
+        const domEls = document.querySelectorAll('.message-bubble');
+        const lastBubble = domEls[domEls.length - 1];
+        if(lastBubble && lastBubble.parentElement) {
+            lastBubble.parentElement.id = `msg-${data[0].id}`;
+        }
+    }
 }
 
 const searchInput = document.getElementById('contact-search-input');
