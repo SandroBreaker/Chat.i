@@ -1,3 +1,4 @@
+
 import { state } from './js/state.js';
 import { showScreen } from './js/ui.js';
 import { loadConfig } from './js/config.js';
@@ -8,66 +9,65 @@ import { initDebugConsole } from './js/debug.js';
 
 // Inicialização
 async function initApp() {
-  // Inicializa o Debug Console (mesmo que oculto)
   initDebugConsole();
-  console.log("%c INICIANDO NEBULA CHAT ", "background: #6366f1; color: white; padding: 4px; border-radius: 4px;");
+  console.log("%c 🚀 BOOTSTRAP V2 - INICIANDO NEBULA CHAT ", "background: #10b981; color: white; padding: 4px; border-radius: 4px;");
   
   try {
-      // 1. Carregar Configurações
       loadConfig();
-      
-      // 2. Inicializar Supabase
-      try {
-          initializeSupabase();
-      } catch (e) {
-          throw new Error("Falha crítica ao conectar com Supabase: " + e.message);
-      }
+      initializeSupabase();
 
-      // 3. Configurar Listeners (Botões e Inputs)
+      // Configura Listeners de UI
       setupAuthListeners();
       setupChatListeners(); 
 
-      // 4. Verificar Sessão (Apenas via Listener para evitar duplicidade)
-      if (state.supabase) {
-        
-        // Listener único de verdade
-        state.supabase.auth.onAuthStateChange((event, session) => {
-            console.log(`📡 Evento Auth: ${event} | Possui Sessão? ${!!session}`);
-            
-            if (session) {
-                // CASO A: Usuário Autenticado
-                // INITIAL_SESSION: Disparado ao carregar a página se houver token
-                // SIGNED_IN: Disparado após login explícito
-                // TOKEN_REFRESHED: Atualização de token (manter sessão)
-                if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-                    handleSessionSuccess(session);
-                } 
-            } else {
-                // CASO B: Não autenticado (Logout ou App aberto sem cookie)
-                // Se INITIAL_SESSION vier null, precisamos ir para o Auth
-                console.log("Nenhuma sessão ativa detectada. Indo para Auth.");
-                state.session = null;
-                state.currentUser = null;
-                showScreen('auth');
-            }
-        });
+      if (!state.supabase) throw new Error("Supabase Client falhou.");
 
+      // --- ESTRATÉGIA DE INICIALIZAÇÃO ROBUSTA ---
+      
+      // 1. Configurar Listener (Reactive)
+      state.supabase.auth.onAuthStateChange((event, session) => {
+          console.log(`📡 Evento Auth: ${event}`);
+          
+          if (event === 'SIGNED_OUT') {
+              window.location.reload();
+              return;
+          }
+
+          if (session) {
+              handleSessionSuccess(session);
+          }
+      });
+
+      // 2. Verificação Explícita Imediata (Proactive)
+      // Não dependemos apenas do evento 'INITIAL_SESSION' que pode falhar/atrasar
+      const { data, error } = await state.supabase.auth.getSession();
+      
+      if (error) {
+          console.error("Erro ao verificar sessão inicial:", error);
+          showScreen('auth');
+      } else if (data.session) {
+          console.log("✅ Sessão ativa encontrada via getSession.");
+          handleSessionSuccess(data.session);
       } else {
-          throw new Error("Supabase Client não foi criado.");
+          console.log("ℹ️ Nenhuma sessão ativa. Exibindo Login.");
+          showScreen('auth');
       }
 
+      // 3. Timeout de Segurança (Failsafe)
+      // Se em 3 segundos nada acontecer (rede lenta ou falha de script), força a tela de Auth
+      setTimeout(() => {
+          const loading = document.getElementById('screen-loading');
+          if (loading && !loading.classList.contains('hidden') && !state.currentUser) {
+              console.warn("⚠️ Timeout de inicialização: Forçando tela de Auth.");
+              showScreen('auth');
+          }
+      }, 3000);
+
   } catch (error) {
-      console.error("❌ ERRO FATAL NA INICIALIZAÇÃO:", error);
-      
+      console.error("❌ ERRO FATAL:", error);
       const loading = document.getElementById('screen-loading');
       if(loading) {
-          loading.innerHTML = `
-            <div style="text-align: center; padding: 20px; color: #ff6b6b;">
-                <h3>Erro de Inicialização</h3>
-                <p style="font-size: 12px; margin-top: 10px;">${error.message}</p>
-                <button onclick="window.location.reload()" style="margin-top: 15px; padding: 8px 16px; background: #333; color: white; border: none; border-radius: 4px;">Recarregar</button>
-            </div>
-          `;
+          loading.innerHTML = `<div style="color:white; text-align:center; padding:20px;">Erro fatal: ${error.message}<br><button onclick="location.reload()" style="margin-top:10px; color:black;">Recarregar</button></div>`;
       }
   }
 }
