@@ -2,12 +2,13 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8" />
-    <!-- interactive-widget=resizes-content força o viewport a encolher quando o teclado abre -->
+    <!-- Viewport otimizado para iOS Safari (evita zoom em inputs) -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Nebula Chat</title>
     
     <script src="https://unpkg.com/lucide@latest"></script>
-    
     <link rel="stylesheet" href="style.css">
 
     <script type="importmap">
@@ -23,124 +24,124 @@
 </head>
 <body>
     
-    <!-- Input oculto para upload de imagens -->
     <input type="file" id="hidden-file-input" accept="image/*" style="display: none;" />
 
-    <div id="screen-loading" class="flex-center" style="position: absolute; inset:0; z-index: 50; background: var(--bg-app); display: flex; flex-direction: column; align-items: center; justify-content: center;">
-        <div class="typing-indicator">
-            <div class="typing-dot"></div>
-            <div class="typing-dot"></div>
-            <div class="typing-dot"></div>
+    <!-- Loading Screen (Minimalist Apple Logo style spinner conceptually) -->
+    <div id="screen-loading" class="flex-center" style="position: absolute; inset:0; z-index: 50; background: #000;">
+        <div class="typing-indicator" style="background: transparent;">
+            <div class="typing-dot" style="background: #FFF;"></div>
+            <div class="typing-dot" style="background: #FFF;"></div>
+            <div class="typing-dot" style="background: #FFF;"></div>
         </div>
-        <p class="text-body" style="margin-top: 20px;">Inicializando Nebula...</p>
     </div>
 
-    <div id="screen-auth" class="hidden" style="position: absolute; inset:0; z-index: 40; background: var(--bg-app); display: flex; align-items: center; justify-content: center; padding: 20px;">
+    <!-- Auth Screen (iOS Full Screen Sheet style) -->
+    <div id="screen-auth" class="hidden" style="position: absolute; inset:0; z-index: 40; display: flex; justify-content: center;">
         
-        <div style="position: absolute; width: 300px; height: 300px; background: var(--color-primary); filter: blur(100px); opacity: 0.15; border-radius: 50%;"></div>
-
-        <div style="background: var(--bg-panel); padding: 40px; border-radius: var(--radius-xl); border: 1px solid var(--glass-border); width: 100%; max-width: 400px; box-shadow: var(--shadow-lg); position: relative; z-index: 10;">
+        <div style="width: 100%; max-width: 360px; padding: 20px;">
             
-            <div style="text-align: center; margin-bottom: 30px;">
-                <h1 class="text-title" id="auth-title" style="font-size: 24px; margin-bottom: 8px;">Bem-vindo de volta</h1>
-                <p class="text-body">Digite suas credenciais para acessar.</p>
+            <div style="text-align: center; margin-bottom: 40px;">
+                <h1 id="auth-title">Welcome</h1>
+                <p class="text-secondary" style="color: var(--text-secondary);">Sign in to connect with your partner.</p>
             </div>
 
-            <div id="auth-error" class="hidden" style="background: rgba(248, 81, 73, 0.1); color: var(--color-danger); padding: 12px; border-radius: var(--radius-sm); margin-bottom: 20px; font-size: 0.9rem; text-align: center;"></div>
+            <div id="auth-error" class="hidden" style="color: var(--color-danger); margin-bottom: 20px; text-align: center; font-size: 14px;"></div>
 
-            <form id="auth-form" style="display: flex; flex-direction: column; gap: 20px;">
+            <form id="auth-form" style="display: flex; flex-direction: column;">
                 
                 <div id="field-username" class="hidden">
-                    <label class="text-xs" style="color: var(--color-primary); margin-bottom: 5px; display: block;">USUÁRIO</label>
-                    <input type="text" id="input-username" style="width: 100%; padding: 12px; background: var(--bg-surface); border: 1px solid var(--glass-border); color: white; border-radius: var(--radius-md); outline: none;">
+                    <input type="text" id="input-username" placeholder="Name">
                 </div>
 
                 <div>
-                    <label class="text-xs" style="color: var(--color-primary); margin-bottom: 5px; display: block;">EMAIL</label>
-                    <input type="email" id="input-email" required style="width: 100%; padding: 12px; background: var(--bg-surface); border: 1px solid var(--glass-border); color: white; border-radius: var(--radius-md); outline: none;">
+                    <input type="email" id="input-email" required placeholder="Email">
                 </div>
 
                 <div>
-                    <label class="text-xs" style="color: var(--color-primary); margin-bottom: 5px; display: block;">SENHA</label>
-                    <input type="password" id="input-password" required style="width: 100%; padding: 12px; background: var(--bg-surface); border: 1px solid var(--glass-border); color: white; border-radius: var(--radius-md); outline: none;">
+                    <input type="password" id="input-password" required placeholder="Password">
                 </div>
 
-                <button type="submit" id="auth-submit-btn" style="background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%); color: white; padding: 14px; border: none; border-radius: var(--radius-md); font-weight: 600; cursor: pointer; transition: transform 0.2s; margin-top: 10px;">
-                    <span id="auth-btn-text">ACESSAR SISTEMA</span>
+                <button type="submit" id="auth-submit-btn">
+                    <span id="auth-btn-text">Sign In</span>
                 </button>
             </form>
 
-            <div style="text-align: center; margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--glass-border);">
-                <button id="auth-toggle-btn" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 0.9rem;">
-                    Não tem conta? <span style="color: var(--color-primary);">Crie agora</span>
+            <div style="text-align: center; margin-top: 30px;">
+                <button id="auth-toggle-btn" style="background: none; border: none; color: var(--ios-blue); font-size: 16px; cursor: pointer;">
+                    Create Account
                 </button>
             </div>
         </div>
     </div>
 
+    <!-- Main App Structure -->
     <div id="screen-chat" class="app-container hidden">
         
+        <!-- SIDEBAR (Contact List) -->
         <aside class="sidebar" id="chat-sidebar">
             <div class="header">
-                <div class="user-info">
-                    <div class="avatar-container">
-                        <img id="current-user-avatar" src="" class="avatar">
-                        <span class="status-dot"></span>
-                    </div>
-                    <div>
-                        <h3 class="text-title">Chats</h3>
-                        <span id="debug-user-id" class="text-xs text-muted">Online</span>
-                    </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button class="btn-icon" style="color: var(--ios-blue); padding-left:0;">Edit</button>
                 </div>
-                
-                <div style="display: flex; gap: 8px;">
-                    <button id="btn-reload-users" class="btn-icon" title="Recarregar Contatos"><i data-lucide="refresh-cw"></i></button>
-                    <button id="btn-logout" class="btn-icon" title="Sair da Conta"><i data-lucide="log-out"></i></button>
+                <h3>Messages</h3>
+                <div class="user-info" style="display: flex; align-items: center;">
+                   <button id="btn-reload-users" class="btn-icon"><i data-lucide="refresh-cw" style="width: 20px;"></i></button>
+                   <button id="btn-logout" class="btn-icon" style="margin-left: -5px;"><i data-lucide="log-out" style="width: 20px;"></i></button>
                 </div>
             </div>
 
-            <div style="padding: 16px; border-bottom: 1px solid var(--glass-border);">
-                <div style="background: var(--bg-surface); border-radius: var(--radius-md); padding: 8px 12px; display: flex; items-center; gap: 10px;">
-                    <i data-lucide="search" style="color: var(--text-secondary); width: 18px;"></i>
-                    <input id="contact-search-input" type="text" placeholder="Buscar..." style="background: transparent; border: none; color: white; width: 100%; outline: none;">
-                    <button id="btn-clear-search" class="hidden" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i data-lucide="x" style="width: 14px;"></i></button>
+            <!-- iOS Style Search Bar -->
+            <div class="search-container">
+                <div class="search-wrapper">
+                    <i data-lucide="search" style="color: var(--text-secondary); width: 16px;"></i>
+                    <input id="contact-search-input" type="text" placeholder="Search">
                 </div>
             </div>
 
-            <div id="users-list" style="overflow-y: auto; flex: 1; padding: 10px 0;">
-                </div>
+            <div id="users-list" style="overflow-y: auto; flex: 1;">
+                <!-- JS will populate users here -->
+            </div>
         </aside>
 
+        <!-- MAIN CHAT AREA -->
         <main class="chat-area">
             
-            <div id="chat-empty-state" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 5; opacity: 0.5;">
-                <i data-lucide="message-square" style="width: 64px; height: 64px; color: var(--color-primary); margin-bottom: 20px;"></i>
-                <h2 class="text-title">Nebula Chat</h2>
-                <p class="text-body">Selecione uma conversa para iniciar</p>
+            <div id="chat-empty-state" class="flex-center" style="position: absolute; inset: 0; flex-direction: column; opacity: 0.4;">
+                <i data-lucide="message-circle" style="width: 60px; height: 60px; color: var(--text-secondary); margin-bottom: 10px;"></i>
+                <p style="color: var(--text-secondary); font-size: 15px;">No Chat Selected</p>
             </div>
 
-            <div id="chat-active-container" class="hidden" style="display: flex; flex-direction: column; height: 100%; width: 100%;">
+            <div id="chat-active-container" class="hidden" style="display: flex; flex-direction: column; height: 100%; width: 100%; background: var(--ios-bg);">
                 
+                <!-- Chat Header (Blur) -->
                 <div class="header">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <button id="btn-back-list" class="btn-icon" style="display: none;"><i data-lucide="arrow-left"></i></button>
-                        
-                        <img id="chat-header-avatar" src="" class="avatar" style="width: 40px; height: 40px;">
-                        <div>
-                            <h3 id="chat-header-name" class="text-title" style="font-size: 1rem;">Nome</h3>
-                            <span class="text-xs" style="color: var(--color-success);">● Online</span>
+                    <button id="btn-back-list" class="hidden-desktop">
+                        <i data-lucide="chevron-left"></i> 
+                    </button>
+                    
+                    <div class="flex-center" style="flex-direction: column; margin: 0 auto; transform: translateY(2px);">
+                        <div class="flex-center" style="gap: 6px;">
+                            <img id="chat-header-avatar" src="" style="width: 24px; height: 24px; border-radius: 50%;">
+                            <span id="chat-header-name" style="font-size: 13px; font-weight: 600;">Name</span>
                         </div>
+                        <span style="font-size: 10px; color: var(--text-secondary); margin-top: 1px;">Online</span>
                     </div>
+
+                    <!-- Botão de 'Info' padrão iOS (lado direito) -->
+                    <button class="btn-icon">
+                        <i data-lucide="info" style="width: 20px;"></i>
+                    </button>
                 </div>
 
-                <div id="messages-list" id="messages-display">
-                    </div>
+                <!-- Messages -->
+                <div id="messages-list"></div>
 
+                <!-- Input Footer -->
                 <form id="message-form">
                     <div class="input-capsule">
-                        <button type="button" id="btn-attach" class="btn-icon"><i data-lucide="paperclip"></i></button>
-                        <input type="text" id="message-input" placeholder="Digite sua mensagem..." autocomplete="off">
-                        <button type="submit" class="btn-icon btn-send"><i data-lucide="send"></i></button>
+                        <button type="button" id="btn-attach" title="Photos"><i data-lucide="plus"></i></button>
+                        <input type="text" id="message-input" placeholder="iMessage" autocomplete="off">
+                        <button type="submit" class="btn-send"><i data-lucide="arrow-up"></i></button>
                     </div>
                 </form>
 

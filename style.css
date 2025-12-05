@@ -1,256 +1,257 @@
 /* =============================================================================
-   NEBULA UX DESIGN SYSTEM - v2.0 (Senior Refactor)
-   Architecture: Atomic / Token-Based
-   Theme: Midnight Glass (Dark Mode Native)
-   Target: High-Performance Web Apps
-=============================================================================
-*/
+   iOS HUMAN INTERFACE GUIDELINES - DARK MODE (OLED)
+   Target: Couples App / Premium Messaging
+   Designer: Senior UI Specialist
+============================================================================= */
 
-/* --------------------------------------------------------------------------
-   1. DESIGN TOKENS (ROOT VARIABLES)
--------------------------------------------------------------------------- */
 :root {
-  /* --- PALETA DE CORES (HSL para manipulação fácil) --- */
+  /* --- iOS SYSTEM COLORS (Dark Mode) --- */
+  --ios-bg: #000000;              /* OLED Black */
+  --ios-surface: #1C1C1E;         /* Cards / Modals / Secondary Backgrounds */
+  --ios-surface-2: #2C2C2E;       /* Elevated Surface */
+  --ios-separator: rgba(84, 84, 88, 0.65); /* Separators */
   
-  /* Brand / Primary (Indigo Elétrico) */
-  --hue-primary: 245;
-  --color-primary-light: hsl(var(--hue-primary), 90%, 70%);
-  --color-primary:       hsl(var(--hue-primary), 80%, 60%);
-  --color-primary-dark:  hsl(var(--hue-primary), 70%, 50%);
-  --color-primary-dim:   hsla(var(--hue-primary), 80%, 60%, 0.15);
+  /* --- ACCENT COLORS --- */
+  /* iMessage Blue - Gradient sutil para dar vida */
+  --ios-blue: #0A84FF;
+  --ios-blue-grad: linear-gradient(180deg, #0A84FF 0%, #007AFF 100%);
+  
+  /* Message Bubbles */
+  --bubble-out: #0A84FF;
+  --bubble-in: #262628;
+  
+  /* Text */
+  --text-primary: #FFFFFF;
+  --text-secondary: #8E8E93; /* System Gray */
+  --text-placeholder: #636366;
+  
+  /* Status */
+  --color-success: #32D74B;
+  --color-danger: #FF453A;
 
-  /* Backgrounds (Deep Slate) */
-  --bg-app:     #0b1116; /* O "Vazio" */
-  --bg-panel:   #151f28; /* Camada 1 */
-  --bg-surface: #1e2a36; /* Camada 2 (Inputs/Cards) */
-  --bg-elevated:#2a3b4d; /* Camada 3 (Modais/Popovers) */
+  /* Dimensions */
+  --header-height: 54px; /* Mais compacto como no iOS */
+  --radius-bubble: 20px;
+  --radius-surface: 12px;
   
   /* Glassmorphism */
-  --glass-nav:  rgba(11, 17, 22, 0.95); /* Aumentei opacidade para mobile */
-  --glass-card: rgba(30, 42, 54, 0.60);
-  --glass-border: rgba(255, 255, 255, 0.08);
-
-  /* Texto */
-  --text-primary:   #f0f6fc;
-  --text-secondary: #8b949e;
-  --text-muted:     #56616e;
-  --text-inverse:   #0d1117;
-
-  /* Feedback UX */
-  --color-success: #2ea043;
-  --color-warning: #d29922;
-  --color-danger:  #f85149;
-  --color-info:    #58a6ff;
-
-  /* --- ESPAÇAMENTO & GEOMETRIA --- */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
-  
-  --radius-sm: 6px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
-  --radius-xl: 28px;
-  --radius-pill: 9999px;
-
-  /* --- MOTION & TIMING (Crucial para UX) --- */
-  --ease-elastic: cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  --ease-smooth:  cubic-bezier(0.4, 0, 0.2, 1);
-  --duration-fast: 200ms;
-  --duration-normal: 300ms;
-  --duration-slow: 500ms;
-
-  /* --- SHADOWS & DEPTH --- */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
-  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.4), 0 2px 4px -1px rgba(0,0,0,0.2);
-  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.5), 0 4px 6px -2px rgba(0,0,0,0.3);
-  --shadow-glow: 0 0 20px hsla(var(--hue-primary), 80%, 60%, 0.3);
+  --glass-material: rgba(30, 30, 30, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.12);
 }
-
-/* --- ADICIONE ISSO LOGO APÓS O :ROOT NO STYLE.CSS --- */
-
-/* Utilitário essencial para troca de telas */
-.hidden {
-  display: none !important;
-}
-
-/* Garante que o app ocupe a tela toda */
-.full-screen {
-  width: 100vw;
-  height: 100dvh;
-  overflow: hidden;
-}
-
-/* Utilitário para centralizar (Loading) */
-.flex-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 
 /* --------------------------------------------------------------------------
-   2. GLOBAL RESET & BASE UX
-   Normalização agressiva para comportamento previsível.
+   1. RESET & BASE
 -------------------------------------------------------------------------- */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  /* UX Mobile: Remove delay de tap */
   -webkit-tap-highlight-color: transparent;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
 }
 
-html {
-  font-size: 100%;
-  scroll-behavior: smooth;
-  height: 100%; /* Fix para Mobile Safari/Chrome */
-  overflow: hidden; /* Evita scroll elástico na página inteira */
-}
-
-body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background-color: var(--bg-app);
+html, body {
+  height: 100%;
+  width: 100%;
+  background-color: var(--ios-bg);
   color: var(--text-primary);
-  line-height: 1.6;
-  overflow: hidden; /* App-like feel */
-  height: 100dvh; /* Dynamic Viewport Height */
-  width: 100vw;
+  overflow: hidden; /* App feel */
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Scrollbars customizadas (Dark Minimalist) */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { 
-  background: var(--bg-surface); 
-  border-radius: var(--radius-pill); 
-}
-::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
-
-/* Foco Acessível (Visível apenas para teclado) */
-:focus { outline: none; }
-:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 4px;
-  border-radius: 4px;
-}
-
-/* Imagens responsivas por padrão */
-img, picture, video, canvas, svg {
-  display: block;
-  max-width: 100%;
-}
+/* Scrollbar invisível estilo iOS */
+::-webkit-scrollbar { width: 0px; background: transparent; }
 
 /* --------------------------------------------------------------------------
-   3. TYPOGRAPHY SYSTEM
-   Escala modular e utilitários de texto.
--------------------------------------------------------------------------- */
-h1, h2, h3, h4, h5, h6 {
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-  color: var(--text-primary);
-}
-
-.text-title { font-size: 1.125rem; font-weight: 600; }
-.text-body  { font-size: 0.9375rem; color: var(--text-secondary); }
-.text-small { font-size: 0.75rem; letter-spacing: 0.02em; }
-.text-xs    { font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
-
-.font-mono { font-family: 'Fira Code', monospace; }
-
-/* --------------------------------------------------------------------------
-   4. LAYOUT & CONTAINERS (Chat Specific)
-   Estrutura Flexbox robusta para evitar quebras.
+   2. LAYOUT STRUCTURE
 -------------------------------------------------------------------------- */
 .app-container {
   display: flex;
-  height: 100dvh; /* Ajusta conforme o teclado via meta tag */
+  height: 100dvh;
   width: 100vw;
-  overflow: hidden;
-  background-color: var(--bg-app);
+  background-color: var(--ios-bg);
 }
 
 .sidebar {
-  width: 380px;
-  background-color: var(--bg-panel);
-  border-right: 1px solid var(--glass-border);
+  width: 360px;
+  background-color: var(--ios-bg);
+  border-right: 0.5px solid var(--ios-separator);
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
-  z-index: 10;
-  transition: transform var(--duration-normal) var(--ease-smooth);
+  z-index: 20;
 }
 
-/* ÁREA DO CHAT - REESTRUTURADA PARA FLEXBOX */
 .chat-area {
   flex: 1;
   display: flex;
-  flex-direction: column; /* Organiza Header, Msg e Input verticalmente */
+  flex-direction: column;
   position: relative;
-  background-color: var(--bg-app);
-  background-image: 
-    radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.03) 0%, transparent 20%),
-    radial-gradient(circle at 90% 80%, rgba(46, 160, 67, 0.03) 0%, transparent 20%);
-  overflow: hidden; /* Impede scroll na área principal, apenas na lista de msgs */
+  background-color: var(--ios-bg);
 }
 
-/* Responsividade Mobile First */
+/* Utilitários */
+.hidden { display: none !important; }
+.flex-center { display: flex; align-items: center; justify-content: center; }
+
+/* Mobile Responsiveness */
 @media (max-width: 768px) {
-  .sidebar {
-    width: 100%;
-    position: absolute;
-    inset: 0;
+  .sidebar { width: 100%; position: absolute; inset: 0; transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1); }
+  .sidebar.hidden-mobile { transform: translateX(-30%); opacity: 0; pointer-events: none; }
+  
+  .chat-area { 
+    position: absolute; 
+    inset: 0; 
+    z-index: 30; 
+    transform: translateX(100%); 
+    transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
   }
-  .sidebar.hidden-mobile {
-    transform: translateX(-100%);
+  
+  /* Quando o container ativo NÃO está hidden, trazemos ele pra tela */
+  #chat-active-container:not(.hidden) {
+    transform: translateX(0);
   }
-  .chat-area {
-    width: 100%;
-    z-index: 5;
+  /* Ajuste no parent para permitir a animação acima */
+  .chat-area { transform: none; display: flex; }
+  
+  /* Lógica visual de navegação iOS */
+  #chat-active-container.hidden {
+      display: none; /* Fallback para JS atual */
   }
 }
 
 /* --------------------------------------------------------------------------
-   5. COMPONENT: HEADER (Glassmorphic)
+   3. NAVIGATION BARS (Glassmorphism)
 -------------------------------------------------------------------------- */
 .header {
-  height: 64px; /* Levemente menor para mobile */
-  padding: 0 var(--space-md);
+  height: var(--header-height);
+  padding: 0 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--glass-nav);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--glass-border);
-  flex-shrink: 0; /* Header nunca encolhe */
-  z-index: 20;
+  
+  /* iOS Blur Effect */
+  background: var(--glass-material);
+  backdrop-filter: blur(25px) saturate(180%);
+  -webkit-backdrop-filter: blur(25px) saturate(180%);
+  
+  border-bottom: 0.5px solid var(--ios-separator);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  flex-shrink: 0;
 }
 
-.user-info {
+/* Sidebar Title - Large Title iOS style transformation handled inside header for now */
+.header h3 {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+}
+
+/* Header Actions */
+.btn-icon {
+  background: transparent;
+  border: none;
+  color: var(--ios-blue); /* iOS Action Color */
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: var(--space-md);
+  justify-content: center;
+  padding: 8px;
+  border-radius: 50%;
+  transition: opacity 0.2s;
+}
+.btn-icon:active { opacity: 0.5; }
+
+/* Back Button (Chevron) */
+#btn-back-list {
+  color: var(--ios-blue);
+  font-size: 17px;
+  font-weight: 400;
+  padding-left: 0;
+  display: flex; 
+  align-items: center;
+  gap: 4px;
+}
+/* Simula o texto "Voltar" ou "Chats" padrão do iOS */
+#btn-back-list::after {
+  content: "Chats";
+  font-family: -apple-system;
+  font-size: 17px;
+  margin-top: -1px;
+}
+
+/* --------------------------------------------------------------------------
+   4. SEARCH BAR (iOS Native Style)
+-------------------------------------------------------------------------- */
+.search-container {
+  padding: 10px 16px;
+  background-color: var(--ios-bg); /* O search fica sob o blur do header se rolar, mas aqui é estático */
+}
+
+.search-wrapper {
+  background-color: var(--ios-surface);
+  border-radius: 10px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  transition: background-color 0.2s;
+}
+
+.search-wrapper:focus-within {
+  background-color: var(--ios-surface-2);
+}
+
+.search-wrapper input {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 17px;
+  margin-left: 6px;
+  width: 100%;
+  outline: none;
+}
+.search-wrapper input::placeholder { color: var(--text-secondary); }
+
+/* --------------------------------------------------------------------------
+   5. LIST ITEMS (Chats)
+-------------------------------------------------------------------------- */
+#users-list {
+  padding-left: 16px; /* Margem esquerda para o separador */
+}
+
+.chat-list-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px 12px 0; /* Padding right e bottom/top apenas */
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: var(--radius-md);
-  transition: background var(--duration-fast);
-}
-
-.user-info:hover {
-  background: rgba(255,255,255,0.05);
-}
-
-/* Avatar com indicador de status */
-.avatar-container {
   position: relative;
-  width: 40px;
-  height: 40px;
+}
+
+/* iOS Separator Line Logic */
+.chat-list-item::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  left: 60px; /* Alinhado com o texto, ignorando avatar */
+  height: 0.5px;
+  background-color: var(--ios-separator);
+}
+
+.chat-list-item:active {
+  background-color: var(--ios-surface);
+  margin-left: -16px; /* Compensar padding para highlight total */
+  padding-left: 16px;
+}
+
+.avatar-container {
+  width: 48px;
+  height: 48px;
+  margin-right: 12px;
+  position: relative;
+  flex-shrink: 0;
 }
 
 .avatar {
@@ -258,432 +259,243 @@ h1, h2, h3, h4, h5, h6 {
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid var(--bg-panel);
-  box-shadow: var(--shadow-sm);
+  background: var(--ios-surface);
 }
 
 .status-dot {
   position: absolute;
-  bottom: 2px;
-  right: 2px;
-  width: 10px;
-  height: 10px;
+  bottom: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
   background-color: var(--color-success);
-  border: 2px solid var(--bg-panel);
+  border: 2px solid var(--ios-bg);
   border-radius: 50%;
-  animation: pulse-green 2s infinite;
 }
 
-/* --------------------------------------------------------------------------
-   6. COMPONENT: CHAT FEED & BUBBLES
-   O coração da UX. Foco em legibilidade e hierarquia.
--------------------------------------------------------------------------- */
-#messages-display {
-  flex: 1; /* Ocupa todo o espaço disponível */
-  overflow-y: auto; /* Scroll apenas aqui */
-  padding: var(--space-md) var(--space-lg);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  scroll-behavior: smooth;
-  /* Espaço para o footer não colar na última msg */
-  padding-bottom: 20px;
-}
+.item-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 
-/* Classes utilitárias de Data */
-.date-divider {
-  align-self: center;
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-  padding: 4px 12px;
-  border-radius: var(--radius-pill);
-  margin: var(--space-md) 0;
-  box-shadow: var(--shadow-sm);
-  opacity: 0.8;
-}
-
-/* BUBBLE BASE */
-.message-bubble {
-  max-width: 80%; /* Mais largo no mobile */
-  padding: 10px 14px;
-  font-size: 0.95rem;
-  line-height: 1.4;
-  position: relative;
-  word-wrap: break-word;
-  transition: transform 0.2s;
-  
-  /* UX Animation: Entrance */
-  animation: slide-up-fade 0.3s var(--ease-elastic) forwards;
-  opacity: 0; 
-  transform: translateY(20px);
-}
-
-/* MENSAGEM DO USUÁRIO (Direita) */
-.message-out {
-  align-self: flex-end;
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
-  color: #fff;
-  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg);
-  box-shadow: 0 4px 15px hsla(var(--hue-primary), 60%, 50%, 0.25);
-}
-
-/* MENSAGEM DE OUTROS (Esquerda) */
-.message-in {
-  align-self: flex-start;
-  background-color: var(--bg-surface);
-  color: var(--text-primary);
-  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-sm);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--shadow-sm);
-}
-
-/* Estilo para imagem dentro da mensagem */
-.msg-image {
-    max-width: 250px;
-    width: 100%;
-    border-radius: 8px;
-    margin-bottom: 6px;
-    display: block;
-    cursor: pointer;
-    border: 1px solid rgba(255,255,255,0.1);
-}
-
-/* META DATA (Hora e Status) */
-.bubble-meta {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 4px;
-  margin-top: 2px;
-  font-size: 0.65rem;
-  opacity: 0.7;
-  user-select: none;
-}
-
-.message-out .bubble-meta { color: rgba(255,255,255, 0.8); }
-.message-in .bubble-meta  { color: var(--text-muted); }
-
-/* Ícones SVG dentro do meta */
-.bubble-meta svg { width: 12px; height: 12px; }
-
-/* --------------------------------------------------------------------------
-   7. COMPONENT: INPUT AREA (Fixed & Modern)
-   Mudança para Flexbox/Static para funcionar com Teclado.
--------------------------------------------------------------------------- */
-#message-form {
-  flex-shrink: 0; /* Não encolhe */
-  width: 100%;
-  padding: 10px var(--space-md) var(--space-md) var(--space-md);
-  background: var(--bg-app); /* Sólido para cobrir msgs rolando por trás */
-  border-top: 1px solid var(--glass-border);
-  z-index: 30;
-}
-
-/* O container real do input */
-.input-capsule {
-  background: var(--bg-panel);
-  border: 1px solid var(--glass-border);
-  border-radius: 24px;
-  padding: 6px 6px 6px 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  max-width: 900px;
-  margin: 0 auto;
-}
-
-/* Estado de Foco da Cápsula (Glow Effect) */
-.input-capsule:focus-within {
-  border-color: var(--color-primary);
-  background: var(--bg-elevated);
-}
-
-#message-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  color: var(--text-primary);
-  font-size: 1rem;
-  max-height: 80px;
-  min-height: 24px;
-  padding: 8px 0;
-}
-#message-input::placeholder { color: var(--text-muted); }
-
-/* ACTIONS (Botões de anexo, emoji, send) */
-.btn-icon {
-  width: 36px; height: 36px;
-  border-radius: 50%;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-.btn-icon:hover { 
-  background: rgba(255,255,255,0.05); 
-  color: var(--text-primary); 
-}
-
-.btn-send {
-  background: var(--color-primary);
-  color: white;
-  margin-left: 4px;
-}
-.btn-send:hover {
-  background: var(--color-primary-light);
-}
-
-/* --------------------------------------------------------------------------
-   8. COMPONENT: LIST ITEMS (Sidebar)
--------------------------------------------------------------------------- */
-.chat-list-item {
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  border-radius: var(--radius-md);
-  margin: 4px 8px;
-  cursor: pointer;
-  transition: background 0.2s;
-  position: relative;
-  overflow: hidden;
-}
-
-/* Efeito Ripple sutil no hover */
-.chat-list-item:hover {
-  background-color: var(--bg-surface);
-}
-
-.chat-list-item.active {
-  background-color: var(--color-primary-dim);
-}
-.chat-list-item.active::before {
-  content: "";
-  position: absolute; left: 0; top: 10%; bottom: 10%;
-  width: 3px;
-  background: var(--color-primary);
-  border-radius: 0 4px 4px 0;
-}
-
-.item-content {
-  flex: 1;
-  min-width: 0; /* Flexbox text-overflow fix */
-}
-
-.item-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 4px;
-}
+.item-header { display: flex; justify-content: space-between; align-items: baseline; }
 
 .item-name {
-  font-weight: 500;
   color: var(--text-primary);
-  font-size: 0.95rem;
+  font-weight: 600;
+  font-size: 17px;
 }
+
 .item-time {
-  font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 400;
 }
 
 .item-preview {
   color: var(--text-secondary);
-  font-size: 0.85rem;
+  font-size: 15px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-/* Badge de mensagens não lidas */
-.badge-unread {
-  background: var(--color-primary);
-  color: white;
-  font-size: 0.7rem;
-  font-weight: 700;
-  min-width: 20px;
-  height: 20px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 6px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  line-height: 1.2;
 }
 
 /* --------------------------------------------------------------------------
-   9. UX UTILITIES & FEEDBACK
-   Classes para JS toggle (Loading, Erros, Estados)
+   6. CHAT AREA & BUBBLES (iMessage Style)
 -------------------------------------------------------------------------- */
-
-/* Skeleton Loading (Quando a internet está lenta) */
-.skeleton {
-  background: linear-gradient(90deg, var(--bg-surface) 25%, var(--bg-elevated) 50%, var(--bg-surface) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: 4px;
-  color: transparent !important;
-  cursor: wait;
-}
-.skeleton-avatar { width: 48px; height: 48px; border-radius: 50%; }
-.skeleton-text { height: 14px; width: 60%; margin-bottom: 6px; }
-
-/* Typing Indicator (As 3 bolinhas pulando) */
-.typing-indicator {
-  padding: 12px 16px;
-  background: var(--bg-surface);
-  border-radius: var(--radius-lg);
-  border-bottom-left-radius: 4px;
-  width: fit-content;
-  display: flex;
-  gap: 4px;
-  align-self: flex-start;
-  margin-left: var(--space-lg);
-}
-.typing-dot {
-  width: 6px; height: 6px;
-  background: var(--text-secondary);
-  border-radius: 50%;
-  animation: bounce 1.4s infinite ease-in-out both;
-}
-.typing-dot:nth-child(1) { animation-delay: -0.32s; }
-.typing-dot:nth-child(2) { animation-delay: -0.16s; }
-
-/* --------------------------------------------------------------------------
-   10. KEYFRAME ANIMATIONS
--------------------------------------------------------------------------- */
-@keyframes slide-up-fade {
-  0% { opacity: 0; transform: translateY(15px) scale(0.95); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-@keyframes pulse-green {
-  0% { box-shadow: 0 0 0 0 rgba(46, 160, 67, 0.4); }
-  70% { box-shadow: 0 0 0 6px rgba(46, 160, 67, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(46, 160, 67, 0); }
-}
-
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-@keyframes bounce {
-  0%, 80%, 100% { transform: scale(0); }
-  40% { transform: scale(1); }
-}
-
-/* --------------------------------------------------------------------------
-   11. ACCESSIBILITY OVERRIDES
-   Respeita configurações do sistema do usuário.
--------------------------------------------------------------------------- */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-
-/* --------------------------------------------------------------------------
-   12. DEBUG CONSOLE STYLES (Improved)
--------------------------------------------------------------------------- */
-#mobile-debug-console {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 40vh; /* Ocupa menos da metade da tela */
-  z-index: 9999;
-  background: rgba(11, 17, 22, 0.95);
+#messages-list {
+  flex: 1;
+  padding: 16px 12px;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  color: #fff;
-  font-family: 'Fira Code', monospace;
-  font-size: 11px;
-  border-bottom: 1px solid var(--color-primary);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-  transition: transform 0.3s ease;
+  gap: 2px; /* iMessage agrupa mensagens próximas */
+  -webkit-overflow-scrolling: touch;
 }
 
-#mobile-debug-console.hidden {
-  display: none !important;
+/* Wrapper da mensagem para alinhamento */
+#messages-list > div {
+  margin-bottom: 2px; /* Padrão agrupado */
+}
+/* Adiciona espaço maior se mudar o remetente (simulado via JS ou visualmente pelo CSS :has se suportado, mas aqui usamos margin padrão maior no wrapper JS se possível, ou CSS visual gap global) */
+#messages-list > div:nth-child(n) {
+  margin-top: 4px; 
 }
 
-.debug-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  background: #202c33;
-  border-bottom: 1px solid #334155;
-  font-weight: bold;
-}
-
-.debug-actions button {
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  border: 1px solid var(--glass-border);
-  padding: 2px 8px;
-  margin-left: 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 10px;
-}
-
-#debug-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px 15px;
-  white-space: pre-wrap;
+.message-bubble {
+  max-width: 75%;
+  padding: 10px 16px;
+  font-size: 17px;
+  line-height: 1.35;
+  position: relative;
   word-wrap: break-word;
 }
 
-.log-line {
-  margin-bottom: 4px;
-  line-height: 1.3;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-  padding-bottom: 2px;
-}
-
-.log-error { color: #ff6b6b; }
-.log-warn { color: #ffc35b; }
-.log-info { color: #69e4ff; }
-
-.log-time {
-  color: var(--text-muted);
-  margin-right: 5px;
-  font-size: 9px;
-}
-
-/* Botão Flutuante (FAB) para abrir o console */
-#debug-fab {
-  position: fixed;
-  bottom: 80px; /* Acima do input */
-  right: 20px;
-  z-index: 9998;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: rgba(0,0,0,0.5);
+/* OUTGOING (Eu) - Blue */
+.message-out {
+  background: var(--ios-blue-grad);
   color: white;
-  border: 1px solid var(--glass-border);
-  font-size: 18px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(4px);
+  border-radius: 18px 18px 4px 18px; /* Tail effect visual */
+  /* iMessage physics pop */
+  animation: pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
-#debug-fab.hidden { display: none; }
+
+/* INCOMING (Outro) - Grey */
+.message-in {
+  background-color: var(--ios-incoming);
+  color: var(--text-primary);
+  border-radius: 18px 18px 18px 4px; /* Tail effect visual */
+  animation: pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.msg-image {
+  border-radius: 12px;
+  max-width: 240px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.bubble-meta {
+  font-size: 11px;
+  margin-top: 4px;
+  display: flex;
+  justify-content: flex-end;
+  opacity: 0.7;
+  gap: 4px;
+}
+.message-in .bubble-meta { color: var(--text-secondary); }
+.message-out .bubble-meta { color: rgba(255, 255, 255, 0.8); }
+
+/* --------------------------------------------------------------------------
+   7. INPUT BAR (iMessage Style)
+-------------------------------------------------------------------------- */
+#message-form {
+  background-color: rgba(0,0,0,0.6); /* Translucidez leve */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 8px 16px 20px 16px; /* Extra bottom padding p/ Home Indicator do iPhone */
+  border-top: 0.5px solid var(--ios-separator);
+  z-index: 50;
+}
+
+.input-capsule {
+  display: flex;
+  align-items: flex-end; /* Alinha ícones com a parte de baixo se o texto for multiline */
+  gap: 12px;
+}
+
+#message-input {
+  flex: 1;
+  background-color: var(--ios-surface);
+  border: 1px solid #333;
+  border-radius: 20px;
+  padding: 9px 16px;
+  color: var(--text-primary);
+  font-size: 17px;
+  line-height: 22px;
+  min-height: 38px;
+  max-height: 100px;
+  outline: none;
+}
+#message-input::placeholder { color: var(--text-placeholder); }
+
+/* Botão de Anexo (+) */
+#btn-attach {
+  color: var(--text-secondary);
+  background: var(--ios-surface);
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  padding: 0;
+  flex-shrink: 0;
+  margin-bottom: 3px;
+}
+
+/* Botão Enviar (Seta azul no círculo ou ícone) */
+.btn-send {
+  background: var(--ios-blue);
+  color: white;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  margin-bottom: 3px;
+  box-shadow: 0 2px 6px rgba(10, 132, 255, 0.3);
+}
+.btn-send svg { width: 18px; height: 18px; margin-left: 2px; } /* Ajuste visual da seta */
+
+/* --------------------------------------------------------------------------
+   8. AUTH & MODALS (Sheet Style)
+-------------------------------------------------------------------------- */
+#screen-auth {
+  background: var(--ios-bg);
+  align-items: flex-start; /* Começa do topo */
+  padding-top: 20vh;
+}
+
+/* Card de Login minimalista */
+#screen-auth > div {
+  background: transparent !important; /* Remove card background */
+  box-shadow: none !important;
+  border: none !important;
+  text-align: center;
+}
+
+#auth-title {
+  font-size: 34px; /* iOS Large Title */
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+#auth-form input {
+  background: var(--ios-surface);
+  border: none;
+  border-bottom: 1px solid var(--ios-separator);
+  border-radius: 0;
+  padding: 16px 0;
+  font-size: 17px;
+  color: white;
+  margin-bottom: 8px;
+}
+#auth-form input:first-child { border-radius: 10px 10px 0 0; }
+#auth-form input:last-of-type { border-radius: 0 0 10px 10px; border-bottom: none; }
+/* Agrupa inputs visualmente */
+#auth-form > div { margin: 0 !important; }
+
+#auth-submit-btn {
+  margin-top: 24px;
+  background: var(--ios-blue);
+  border-radius: 12px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------------------------
+   9. ANIMATIONS
+-------------------------------------------------------------------------- */
+@keyframes pop-in {
+  0% { opacity: 0; transform: scale(0.9) translateY(10px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.typing-indicator {
+  background: var(--ios-incoming);
+  padding: 12px 16px;
+  border-radius: 18px;
+  border-bottom-left-radius: 4px;
+  display: flex;
+  gap: 4px;
+  width: fit-content;
+}
+.typing-dot {
+  width: 8px; height: 8px;
+  background: var(--text-secondary);
+  border-radius: 50%;
+  animation: bounce 1.4s infinite;
+  opacity: 0.5;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+
+/* Debug Console Clean up */
+#mobile-debug-console { background: #1C1C1E; border-top: 1px solid #333; font-family: 'Menlo', monospace; }
