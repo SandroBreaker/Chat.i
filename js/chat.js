@@ -18,8 +18,11 @@ export async function loadUsers(forceReload = false) {
   const listEl = document.getElementById('users-list');
   if (!listEl) return;
 
+  // Se já temos usuários e não é reload forçado, renderiza o cache
+  // Mas GARANTE que a subscription global esteja ativa
   if (!forceReload && allCachedUsers.length > 0) {
     renderUserList(allCachedUsers);
+    setupGlobalRealtimeSubscription(); 
     return;
   }
 
@@ -39,6 +42,11 @@ export async function loadUsers(forceReload = false) {
       state.users = data || [];
       allCachedUsers = state.users; 
       renderUserList(allCachedUsers);
+      
+      // Inicia listener GLOBAL (para notificações) após carregar usuários
+      // (Precisamos dos usuários carregados para saber os nomes nas notificações)
+      setupGlobalRealtimeSubscription();
+
   } catch (err) {
       console.error(err);
       listEl.innerHTML = `<div class="text-body" style="padding: 20px; text-align: center; color: var(--color-danger);">Erro ao carregar contatos.<br><small>${err.message}</small></div>`;
@@ -132,9 +140,10 @@ async function loadMessages() {
       allMessages.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
       state.messages = allMessages;
-      
       renderMessagesList(true);
-      subscribeToRealtime();
+
+      // NOTA: A inscrição no Realtime agora é GLOBAL (feita no loadUsers)
+      // Não recriamos o canal aqui para evitar duplicidade.
 
   } catch (err) {
       console.error("❌ Falha no algoritmo de carga:", err);
@@ -187,35 +196,95 @@ function appendMessageToDOM(msg, container) {
   if(window.lucide) window.lucide.createIcons({ root: divWrapper });
 }
 
-function subscribeToRealtime() {
-  if (state.realtimeChannel) {
-      // Verifica se o canal já é o correto para evitar recriação desnecessária?
-      // Por simplicidade, recriamos para garantir binding correto com user selecionado
-      state.supabase.removeChannel(state.realtimeChannel);
+/* --------------------------------------------------------------------------
+   REALTIME GLOBAL & NOTIFICATIONS
+   Ouve TODAS as mensagens recebidas para notificar, não apenas a conversa aberta.
+-------------------------------------------------------------------------- */
+function setupGlobalRealtimeSubscription() {
+    if (state.realtimeChannel) {
+        // Se o canal já existe, verificamos se ele está inscrito (opcional, mas seguro retornar)
+        console.log("Realtime Channel já ativo.");
+        return;
+    }
+  
+    console.log("📡 Iniciando Subscription Global (Mensagens + Notificações)");
+    
+    state.realtimeChannel = state.supabase.channel('global_messages')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+          const newMsg = payload.new;
+          const myId = state.currentUser?.id;
+          
+          if (!myId) return; // Segurança
+  
+          // CASO 1: Mensagem recebida por MIM
+          if (newMsg.recipient_id === myId) {
+              
+              // A. Tenta enviar notificação Browser se necessário
+              handleIncomingNotification(newMsg);
+  
+              // B. Se a conversa com esse remetente estiver ABERTA, atualiza UI
+              if (state.selectedUser && state.selectedUser.id === newMsg.sender_id) {
+                   const alreadyExists = state.messages.find(m => m.id === newMsg.id);
+                   if(!alreadyExists) {
+                      state.messages.push(newMsg);
+                      appendMessageToDOM(newMsg, document.getElementById('messages-list'));
+                      const container = document.getElementById('messages-list');
+                      container.scrollTop = container.scrollHeight;
+                   }
+              }
+          }
+          // CASO 2: Mensagem enviada por MIM (em outra aba/dispositivo)
+          else if (newMsg.sender_id === myId) {
+              // Se eu estou com a conversa aberta com o destinatário, atualiza minha UI também
+              if (state.selectedUser && state.selectedUser.id === newMsg.recipient_id) {
+                   const alreadyExists = state.messages.find(m => m.id === newMsg.id);
+                   if(!alreadyExists) {
+                      state.messages.push(newMsg);
+                      appendMessageToDOM(newMsg, document.getElementById('messages-list'));
+                      const container = document.getElementById('messages-list');
+                      container.scrollTop = container.scrollHeight;
+                   }
+              }
+          }
+      }).subscribe((status) => {
+          console.log("Realtime Status:", status);
+      });
   }
   
-  state.realtimeChannel = state.supabase.channel('chat_channel')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-        const newMsg = payload.new;
-        
-        // Verificação de segurança: A mensagem pertence a conversa atual?
-        if (!state.selectedUser || !state.currentUser) return;
-
-        const isRelated = 
-           (newMsg.sender_id === state.selectedUser.id && newMsg.recipient_id === state.currentUser.id) ||
-           (newMsg.sender_id === state.currentUser.id && newMsg.recipient_id === state.selectedUser.id);
-
-        if (isRelated) {
-             const alreadyExists = state.messages.find(m => m.id === newMsg.id);
-             if(!alreadyExists) {
-                state.messages.push(newMsg);
-                appendMessageToDOM(newMsg, document.getElementById('messages-list'));
-                const container = document.getElementById('messages-list');
-                container.scrollTop = container.scrollHeight;
-             }
-        }
-    }).subscribe();
-}
+  function handleIncomingNotification(newMsg) {
+      // Não notifica se eu estou focado na conversa do remetente
+      const isChatOpen = state.selectedUser && state.selectedUser.id === newMsg.sender_id;
+      const isWindowFocused = !document.hidden;
+      
+      // Se a janela está oculta OU o chat não é o que está aberto
+      if (!isWindowFocused || !isChatOpen) {
+          
+          // Encontra quem enviou nos usuários cacheados
+          const sender = state.users.find(u => u.id === newMsg.sender_id);
+          const title = sender ? sender.username : "Nova Mensagem";
+          const body = newMsg.content.includes('<img') ? '📷 [Imagem]' : newMsg.content;
+          const icon = sender ? sender.avatar_url : null;
+          
+          sendNotification(title, body, icon);
+      }
+  }
+  
+  function sendNotification(title, body, icon) {
+      if (!("Notification" in window)) return;
+      
+      if (Notification.permission === "granted") {
+          const notif = new Notification(title, {
+              body: body,
+              icon: icon || '/favicon.ico',
+              tag: 'nebula-chat-msg' // Evita spam excessivo
+          });
+          
+          notif.onclick = function() {
+              window.focus();
+              notif.close();
+          };
+      }
+  }
 
 // Utilitário: Converte File para Base64 Comprimido (Canvas)
 async function compressAndConvertToBase64(file) {

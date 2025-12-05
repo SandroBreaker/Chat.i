@@ -17,6 +17,13 @@ export async function handleSessionSuccess(session) {
     email: session.user.email
   };
   
+  // Solicitar permissão de notificação assim que logar
+  if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().then(permission => {
+          console.log("Permissão de notificação:", permission);
+      });
+  }
+  
   // UI do User atual
   const avatarEl = document.getElementById('current-user-avatar');
   if(avatarEl) {
