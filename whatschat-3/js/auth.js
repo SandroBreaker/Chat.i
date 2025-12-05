@@ -128,7 +128,8 @@ export function setupAuthListeners() {
       btnLogout.addEventListener('click', async () => {
           if (confirm("Deseja realmente sair?")) {
               await state.supabase.auth.signOut();
-              // O listener onAuthStateChange em main.js cuidará do resto
+              // Força o reload para limpar memória
+              window.location.reload();
           }
       });
   }
